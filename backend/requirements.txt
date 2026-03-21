@@ -1,0 +1,37 @@
+# Framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlmodel
+sqlalchemy[asyncio]
+aiomysql
+alembic==1.13.2
+pymysql
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+authlib
+httpx
+itsdangerous
+
+# Validation
+pydantic[email]
+pydantic-settings
+email-validator
+python-multipart
+python-dotenv
+aiofiles
+
+# Redis
+redis[asyncio]
+
+# Cloudinary
+cloudinary
+
+# Twilio
+twilio
+
+# Rate limiting
+slowapi
