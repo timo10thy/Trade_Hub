@@ -5,9 +5,9 @@ uvicorn[standard]
 # Database
 sqlmodel
 sqlalchemy[asyncio]
-aiomysql
+asyncpg
+psycopg2-binary
 alembic==1.13.2
-pymysql
 
 # Auth
 python-jose[cryptography]

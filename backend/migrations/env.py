@@ -28,7 +28,7 @@ config = context.config
 # Set DB URL from settings (use pymysql — Alembic is synchronous)
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL.replace("mysql+aiomysql", "mysql+pymysql")
+    settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")
 )
 
 # Setup loggers
