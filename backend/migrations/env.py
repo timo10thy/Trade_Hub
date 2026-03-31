@@ -25,7 +25,7 @@ from app.models import (
 # Alembic config object
 config = context.config
 
-# Set DB URL from settings (use pymysql — Alembic is synchronous)
+# Set DB URL from settings (use psycopg2 — Alembic is synchronous)
 config.set_main_option(
     "sqlalchemy.url",
     settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")

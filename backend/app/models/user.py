@@ -1,4 +1,6 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
@@ -15,7 +17,10 @@ def utcnow() -> datetime:
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    id: str = Field(default_factory=generate_uuid, primary_key=True, max_length=36)
+    id: str = Field(
+        default_factory=generate_uuid,
+        sa_column=Column(PG_UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    )
     full_name: str = Field(max_length=100)
     email: str = Field(unique=True, index=True, max_length=255)
     phone: Optional[str] = Field(default=None, max_length=20)

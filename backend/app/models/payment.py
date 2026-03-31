@@ -1,4 +1,6 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
@@ -15,15 +17,19 @@ def utcnow() -> datetime:
 class Payment(SQLModel, table=True):
     __tablename__ = "payments"
 
-    id: str = Field(default_factory=generate_uuid, primary_key=True, max_length=36)
-    booking_id: str = Field(foreign_key="bookings.id", unique=True, index=True, max_length=36)
+    id: str = Field(
+        default_factory=generate_uuid,
+        sa_column=Column(PG_UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    )
+    booking_id: str = Field(
+        sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("bookings.id"), unique=True, index=True, nullable=False)
+    )
 
     amount: float = Field(default=0.0)
 
     # pending | held | released | refunded
     status: str = Field(default="pending", max_length=20)
 
-    # Paystack / Flutterwave transaction reference
     provider_ref: Optional[str] = Field(default=None, max_length=255)
 
     # paystack | flutterwave
@@ -31,5 +37,4 @@ class Payment(SQLModel, table=True):
 
     paid_at: Optional[datetime] = Field(default=None)
     released_at: Optional[datetime] = Field(default=None)
-
     created_at: datetime = Field(default_factory=utcnow)
