@@ -1,4 +1,6 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
@@ -15,19 +17,20 @@ def utcnow() -> datetime:
 class Portfolio(SQLModel, table=True):
     __tablename__ = "portfolios"
 
-    id: str = Field(default_factory=generate_uuid, primary_key=True, max_length=36)
-    professional_id: str = Field(foreign_key="professionals.id", index=True, max_length=36)
+    id: str = Field(
+        default_factory=generate_uuid,
+        sa_column=Column(PG_UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    )
+    professional_id: str = Field(
+        sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("professionals.id"), index=True, nullable=False)
+    )
 
     title: str = Field(max_length=255)
     description: Optional[str] = Field(default=None)
-
-    # Cloudinary URL
     media_url: str = Field(max_length=500)
 
     # photo | video
     media_type: str = Field(default="photo", max_length=10)
-
-    # Trade category tag
     trade_tag: Optional[str] = Field(default=None, max_length=100)
 
     # pending | approved | rejected

@@ -1,4 +1,6 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
@@ -15,9 +17,16 @@ def utcnow() -> datetime:
 class Booking(SQLModel, table=True):
     __tablename__ = "bookings"
 
-    id: str = Field(default_factory=generate_uuid, primary_key=True, max_length=36)
-    client_id: str = Field(foreign_key="users.id", index=True, max_length=36)
-    professional_id: str = Field(foreign_key="professionals.id", index=True, max_length=36)
+    id: str = Field(
+        default_factory=generate_uuid,
+        sa_column=Column(PG_UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    )
+    client_id: str = Field(
+        sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), index=True, nullable=False)
+    )
+    professional_id: str = Field(
+        sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("professionals.id"), index=True, nullable=False)
+    )
 
     job_type: str = Field(max_length=255)
     job_description: Optional[str] = Field(default=None)
@@ -28,11 +37,7 @@ class Booking(SQLModel, table=True):
     status: str = Field(default="pending", max_length=20)
 
     budget: float = Field(default=0.0)
-
-    # 5% platform commission
     platform_fee: float = Field(default=0.0)
-
-    # Counter-offer from professional
     counter_offer: Optional[float] = Field(default=None)
     counter_offer_note: Optional[str] = Field(default=None)
 
