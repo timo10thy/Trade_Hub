@@ -1,17 +1,14 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, func, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from app.models.enum import DisputeStatus
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Dispute(SQLModel, table=True):
@@ -29,13 +26,14 @@ class Dispute(SQLModel, table=True):
     )
 
     reason: str = Field()
-
-    # open | under_review | resolved
-    status: str = Field(default="open", max_length=20)
-
+    status: DisputeStatus = Field(default=DisputeStatus.open, index=True)
     resolution: Optional[str] = Field(default=None)
     resolved_by: Optional[str] = Field(
         sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=True)
     )
     resolved_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
+
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    )

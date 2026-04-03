@@ -1,17 +1,13 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, func, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Notification(SQLModel, table=True):
@@ -25,9 +21,12 @@ class Notification(SQLModel, table=True):
         sa_column=Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), index=True, nullable=False)
     )
 
-    # e.g. booking_confirmed | payment_released | booking_cancelled
     type: str = Field(max_length=50)
     message: str = Field()
-    is_read: bool = Field(default=False)
+    is_read: bool = Field(default=False, index=True)
     related_id: Optional[str] = Field(default=None, max_length=36)
-    created_at: datetime = Field(default_factory=utcnow)
+
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    )
