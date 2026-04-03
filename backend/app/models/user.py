@@ -1,17 +1,14 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column
+from sqlalchemy import Column, func, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from app.models.enum import UserRole, UserStatus
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class User(SQLModel, table=True):
@@ -21,27 +18,27 @@ class User(SQLModel, table=True):
         default_factory=generate_uuid,
         sa_column=Column(PG_UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     )
-    full_name: str = Field(max_length=100)
+    full_name: str = Field(max_length=100, index=True)
     email: str = Field(unique=True, index=True, max_length=255)
-    phone: Optional[str] = Field(default=None, max_length=20)
+    phone: str = Field(unique=True, index=True, max_length=20)
     password_hash: Optional[str] = Field(default=None, max_length=255)
+    profile_image_url: Optional[str] = Field(default=None, max_length=500)
 
-    # client | professional | admin
-    role: str = Field(default="client", max_length=20)
+    role: UserRole = Field(default=UserRole.client)
+    status: UserStatus = Field(default=UserStatus.pending)
 
-    # pending | active | suspended
-    status: str = Field(default="pending", max_length=20)
-
-    # OAuth
     oauth_provider: Optional[str] = Field(default=None, max_length=20)
     oauth_id: Optional[str] = Field(default=None, max_length=255)
 
-    # Verification flags
     email_verified: bool = Field(default=False)
     phone_verified: bool = Field(default=False)
-
-    # 2FA
     two_fa_enabled: bool = Field(default=False)
 
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )

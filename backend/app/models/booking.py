@@ -1,17 +1,14 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, func, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from app.models.enum import BookingStatus
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Booking(SQLModel, table=True):
@@ -33,13 +30,18 @@ class Booking(SQLModel, table=True):
     location: str = Field(max_length=500)
     scheduled_at: Optional[datetime] = Field(default=None)
 
-    # pending | confirmed | in_progress | completed | cancelled | disputed
-    status: str = Field(default="pending", max_length=20)
+    status: BookingStatus = Field(default=BookingStatus.pending, index=True)
 
     budget: float = Field(default=0.0)
     platform_fee: float = Field(default=0.0)
     counter_offer: Optional[float] = Field(default=None)
     counter_offer_note: Optional[str] = Field(default=None)
 
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
