@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.core.middleware import register_middleware, limiter
 from app.db.init_db import init_db
 
-# ─── Logging setup ───────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "development" else logging.WARNING,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -16,7 +15,6 @@ logging.basicConfig(
 logger = logging.getLogger("tradehub")
 
 
-# ─── Lifespan (startup/shutdown) ─────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting TradeHub API — environment: {settings.ENVIRONMENT}")
@@ -25,7 +23,6 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down TradeHub API...")
 
 
-# ─── App factory ─────────────────────────────────────────────
 app = FastAPI(
     title="TradeHub API",
     description="Two-sided marketplace for trade professionals in Nigeria",
@@ -35,20 +32,19 @@ app = FastAPI(
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
 )
 
-# ─── Rate limiter ─────────────────────────────────────────────
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ─── Middleware ───────────────────────────────────────────────
 register_middleware(app)
 
 
-# ─── Health check ─────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
 
-# ─── Routers (uncomment as you build each one) ────────────────
-# from app.api.v1 import auth, users, professionals, bookings
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+# Routers
+from app.api.v1 import auth
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+
+
