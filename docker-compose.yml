@@ -48,6 +48,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  tradehub_pgadmin:
+    image: dpage/pgadmin4
+    container_name: tradehub_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@tradehub.com
+      - PGADMIN_DEFAULT_PASSWORD=admin1234
+    ports:
+      - "5050:80"
+    volumes:
+      - tradehub_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - tradehub_db
+    restart: unless-stopped
+
 volumes:
   tradehub_db_data:
   tradehub_redis_data:
+  tradehub_pgadmin_data:
