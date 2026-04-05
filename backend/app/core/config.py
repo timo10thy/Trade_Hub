@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_DATABASE: str
     DATABASE_URL: str
+    ADMIN_SECRET_KEY: str
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
