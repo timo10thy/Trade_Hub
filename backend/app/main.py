@@ -44,7 +44,6 @@ async def health():
 
 
 # Routers
-from app.api.v1 import auth
+from app.api.v1 import auth, admin
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
-
-
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])

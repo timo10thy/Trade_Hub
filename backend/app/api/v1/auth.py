@@ -3,11 +3,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
 from app.db.session import get_session
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
 from app.models.user import User
 from app.models.enum import UserRole, UserStatus
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse
 
 router = APIRouter()
 
@@ -113,3 +113,23 @@ async def register_admin(
     await session.commit()
     await session.refresh(user)
     return user
+
+
+@router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+async def login(user_data: UserLogin, session: AsyncSession = Depends(get_session)):
+    result = await session.exec(select(User).where(User.email == user_data.email))
+    user = result.first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if not verify_password(user_data.password, user.password_hash):
+        raise HTTPException(401, "Incorrect password")
+    if user.status == UserStatus.suspended:
+        raise HTTPException(403, "Account suspended")
+    
+    access_token = create_access_token({"sub": user.id, "role": user.role.value})
+    refresh_token = create_refresh_token({"sub": user.id})
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=user
+    )
