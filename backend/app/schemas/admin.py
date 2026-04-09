@@ -20,3 +20,4 @@ class UserAdminListResponse(SQLModel):
 
 class UserStatusUpdate(SQLModel):
     status: UserStatus
+    reason: Optional[str] = None
