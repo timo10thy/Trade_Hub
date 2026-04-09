@@ -48,6 +48,7 @@ class UserCreate(SQLModel):
 
 class UserResponse(SQLModel):
     model_config = ConfigDict(from_attributes=True)
+    id:str
     full_name: str
     email: str
     phone: str

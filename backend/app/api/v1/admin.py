@@ -1,20 +1,76 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-from typing import List
+from typing import List, Optional
+from app.models.enum import UserStatus, UserRole
 
 from app.core.dependencies import require_admin
 from app.models.user import User
 from app.db.session import get_session
-from app.schemas.admin import UserAdminListResponse
+from app.schemas.admin import UserAdminListResponse, UserStatusUpdate
+# from app.schemas.user import UserResponse, UserCreate
+from app.services.sms_service import send_sms
+from app.services.notification_service import create_notification
 
 router = APIRouter()
 
 @router.get("/users", response_model=List[UserAdminListResponse], status_code=status.HTTP_200_OK)
 async def get_all_users(
+    limit: int = 20,
+    offset: int = 0,
+    status: Optional[UserStatus] = None,
+    role: Optional[UserRole] = None,
     session: AsyncSession = Depends(get_session),
     current_admin: User = Depends(require_admin)
 ):
-    result = await session.exec(select(User))
+    
+    query = select(User)
+    if status:
+        query = query.where(User.status == status)
+    if role:
+        query = query.where(User.role == role)
+    result = await session.exec(query.offset(offset).limit(limit))
     users = result.all()
     return users
+
+@router.get("/users/{user_id}", response_model=UserAdminListResponse, status_code=status.HTTP_200_OK)
+async def get_user_by_id(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.patch("/users/{user_id}/status", response_model=UserAdminListResponse, status_code=status.HTTP_200_OK)
+async def user_status_verify(
+    user_id: str,
+    status_update: UserStatusUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.status = status_update.status
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    if status_update.status == UserStatus.active:
+        send_sms(
+            user.phone,
+            "Your TradeHub account has been approved. Login at: https://tradehub.com/login"
+        )
+        await create_notification(
+            session,
+            user.id,
+            "account_verified",
+            "Your account has been approved. You can now access the platform."
+        )
+    elif status_update.status == UserStatus.suspended:
+        send_sms(user.phone, f"Your TradeHub account has been suspended. Reason: {status_update.reason or 'Policy violation'}")
+        await create_notification(session, user.id, "account_suspended", f"Your account has been suspended. Reason: {status_update.reason or 'Policy violation'}")
+    return user
