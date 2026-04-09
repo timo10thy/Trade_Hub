@@ -6,13 +6,17 @@ from app.models.enum import UserRole,UserStatus
 
 
 class UserAdminListResponse(SQLModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)   # config first
+    id: str
     full_name: str
     email: EmailStr
     phone: str
     role: UserRole
     status: UserStatus
     profile_image_url: Optional[str] = None
-    created_at:datetime
-    updated_at:datetime
+    created_at: datetime
+    updated_at: datetime
 
+
+class UserStatusUpdate(SQLModel):
+    status: UserStatus
