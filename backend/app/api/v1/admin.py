@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from typing import List, Optional
-from app.models.enum import UserStatus
+from app.models.enum import UserStatus, UserRole
 
 from app.core.dependencies import require_admin
 from app.models.user import User
 from app.db.session import get_session
 from app.schemas.admin import UserAdminListResponse, UserStatusUpdate
-from app.schemas.user import UserResponse, UserCreate
+# from app.schemas.user import UserResponse, UserCreate
 from app.services.sms_service import send_sms
 from app.services.notification_service import create_notification
 
@@ -19,6 +19,7 @@ async def get_all_users(
     limit: int = 20,
     offset: int = 0,
     status: Optional[UserStatus] = None,
+    role: Optional[UserRole] = None,
     session: AsyncSession = Depends(get_session),
     current_admin: User = Depends(require_admin)
 ):
@@ -26,6 +27,8 @@ async def get_all_users(
     query = select(User)
     if status:
         query = query.where(User.status == status)
+    if role:
+        query = query.where(User.role == role)
     result = await session.exec(query.offset(offset).limit(limit))
     users = result.all()
     return users
