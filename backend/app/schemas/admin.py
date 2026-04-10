@@ -21,3 +21,17 @@ class UserAdminListResponse(SQLModel):
 class UserStatusUpdate(SQLModel):
     status: UserStatus
     reason: Optional[str] = None
+
+from app.models.enum import UserRole, UserStatus, PaymentStatus, BookingStatus
+
+class PaymentAdminResponse(SQLModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    booking_id: str
+    amount: float
+    status: PaymentStatus
+    provider: Optional[str] = None
+    provider_ref: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    released_at: Optional[datetime] = None
+    created_at: datetime
