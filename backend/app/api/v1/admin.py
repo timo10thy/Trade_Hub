@@ -11,8 +11,9 @@ from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.dispute import Dispute
 from app.models.professional import Professional
-from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus, DisputeStatus, VerificationStatus
-from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse, DisputeAdminResponse, DisputeResolve, ProfessionalAdminResponse, ProfessionalVerificationUpdate
+from app.models.portfolio import Portfolio
+from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus, DisputeStatus, VerificationStatus, ModerationStatus
+from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse, DisputeAdminResponse, DisputeResolve, ProfessionalAdminResponse, ProfessionalVerificationUpdate, PortfolioAdminResponse, PortfolioModerationUpdate
 from app.services.sms_service import send_sms
 from app.services.notification_service import create_notification
 
@@ -325,3 +326,78 @@ async def verify_professional(
             )
 
     return professional
+
+# Portfolio moderation
+@router.get("/portfolios/pending", response_model=List[PortfolioAdminResponse], status_code=status.HTTP_200_OK)
+async def get_pending_portfolios(
+    limit: int = 20,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    query = (
+        select(Portfolio)
+        .where(Portfolio.moderation_status == ModerationStatus.pending)
+    )
+    result = await session.exec(query.offset(offset).limit(limit))
+    return result.all()
+
+
+@router.get("/portfolios/{portfolio_id}", response_model=PortfolioAdminResponse, status_code=status.HTTP_200_OK)
+async def get_portfolio_by_id(
+    portfolio_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    portfolio = await session.get(Portfolio, portfolio_id)
+    if portfolio is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    return portfolio
+
+
+@router.patch("/portfolios/{portfolio_id}/moderate", response_model=PortfolioAdminResponse, status_code=status.HTTP_200_OK)
+async def moderate_portfolio(
+    portfolio_id: str,
+    moderation_data: PortfolioModerationUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    portfolio = await session.get(Portfolio, portfolio_id)
+    if portfolio is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    if portfolio.moderation_status != ModerationStatus.pending:
+        raise HTTPException(status_code=400, detail="Portfolio has already been moderated")
+
+    portfolio.moderation_status = moderation_data.moderation_status
+    session.add(portfolio)
+    await session.commit()
+    await session.refresh(portfolio)
+
+    # Notify professional
+    professional = await session.get(Professional, portfolio.professional_id)
+    if professional:
+        professional_user = await session.get(User, professional.user_id)
+        if professional_user:
+            if moderation_data.moderation_status == ModerationStatus.approved:
+                send_sms(
+                    professional_user.phone,
+                    f"Your portfolio item '{portfolio.title}' has been approved."
+                )
+                await create_notification(
+                    session,
+                    professional_user.id,
+                    "portfolio_approved",
+                    f"Your portfolio item '{portfolio.title}' has been approved and is now visible to clients."
+                )
+            elif moderation_data.moderation_status == ModerationStatus.rejected:
+                send_sms(
+                    professional_user.phone,
+                    f"Your portfolio item '{portfolio.title}' was rejected. Reason: {moderation_data.reason or 'Content policy violation'}."
+                )
+                await create_notification(
+                    session,
+                    professional_user.id,
+                    "portfolio_rejected",
+                    f"Your portfolio item '{portfolio.title}' was rejected. Reason: {moderation_data.reason or 'Content policy violation'}."
+                )
+    return portfolio

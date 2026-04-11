@@ -2,7 +2,7 @@ from sqlmodel import SQLModel
 from pydantic import EmailStr, ConfigDict
 from typing import Annotated,Optional
 from datetime import datetime
-from app.models.enum import UserRole, UserStatus, PaymentStatus, BookingStatus, DisputeStatus, VerificationStatus
+from app.models.enum import UserRole, UserStatus, PaymentStatus, BookingStatus, DisputeStatus, VerificationStatus, ModerationStatus, MediaType
 
 
 
@@ -71,4 +71,20 @@ class ProfessionalAdminResponse(SQLModel):
 
 class ProfessionalVerificationUpdate(SQLModel):
     verification_status: VerificationStatus
+    reason: Optional[str] = None
+
+class PortfolioAdminResponse(SQLModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    professional_id: str
+    title: str
+    description: Optional[str] = None
+    media_url: str
+    media_type: MediaType
+    trade_tag: Optional[str] = None
+    moderation_status: ModerationStatus
+    uploaded_at: datetime
+
+class PortfolioModerationUpdate(SQLModel):
+    moderation_status: ModerationStatus
     reason: Optional[str] = None
