@@ -2,7 +2,7 @@ from sqlmodel import SQLModel
 from pydantic import EmailStr, ConfigDict
 from typing import Annotated,Optional
 from datetime import datetime
-from app.models.enum import UserRole,UserStatus
+from app.models.enum import UserRole, UserStatus, PaymentStatus, BookingStatus, DisputeStatus
 
 
 class UserAdminListResponse(SQLModel):
@@ -22,7 +22,6 @@ class UserStatusUpdate(SQLModel):
     status: UserStatus
     reason: Optional[str] = None
 
-from app.models.enum import UserRole, UserStatus, PaymentStatus, BookingStatus
 
 class PaymentAdminResponse(SQLModel):
     model_config = ConfigDict(from_attributes=True)
@@ -35,3 +34,20 @@ class PaymentAdminResponse(SQLModel):
     paid_at: Optional[datetime] = None
     released_at: Optional[datetime] = None
     created_at: datetime
+
+
+class DisputeAdminResponse(SQLModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    booking_id: str
+    raised_by: str
+    reason: str
+    status: DisputeStatus
+    resolution: Optional[str] = None
+    resolved_by: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    created_at: datetime
+
+class DisputeResolve(SQLModel):
+    resolution: str
+    action: str 

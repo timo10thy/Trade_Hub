@@ -9,9 +9,10 @@ from app.db.session import get_session
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.payment import Payment
+from app.models.dispute import Dispute
 from app.models.professional import Professional
-from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus
-from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse
+from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus, DisputeStatus
+from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse, DisputeAdminResponse, DisputeResolve
 from app.services.sms_service import send_sms
 from app.services.notification_service import create_notification
 
@@ -168,3 +169,85 @@ async def refund_payment(
                 f"Your payment of {payment.amount} has been refunded successfully."
             )
     return payment
+
+
+# dispute
+@router.get("/disputes", response_model=List[DisputeAdminResponse], status_code=status.HTTP_200_OK)
+async def get_all_disputes(
+    status: Optional[DisputeStatus] = None,
+    limit: int = 20,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    query = select(Dispute)
+    if status:
+        query = query.where(Dispute.status == status)
+    result = await session.exec(query.offset(offset).limit(limit))
+    return result.all()
+
+
+@router.get("/disputes/{dispute_id}", response_model=DisputeAdminResponse, status_code=status.HTTP_200_OK)
+async def get_dispute_by_id(
+    dispute_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    dispute = await session.get(Dispute, dispute_id)
+    if dispute is None:
+        raise HTTPException(status_code=404, detail="Dispute not found")
+    return dispute
+
+
+@router.patch("/disputes/{dispute_id}/resolve", response_model=DisputeAdminResponse, status_code=status.HTTP_200_OK)
+async def resolve_dispute(
+    dispute_id: str,
+    resolve_data: DisputeResolve,
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    dispute = await session.get(Dispute, dispute_id)
+    if dispute is None:
+        raise HTTPException(status_code=404, detail="Dispute not found")
+    if dispute.status == DisputeStatus.resolved:
+        raise HTTPException(status_code=400, detail="Dispute already resolved")
+
+    # Update dispute
+    dispute.status = DisputeStatus.resolved
+    dispute.resolution = resolve_data.resolution
+    dispute.resolved_by = current_admin.id
+    dispute.resolved_at = datetime.utcnow()
+    session.add(dispute)
+    await session.commit()
+    await session.refresh(dispute)
+
+    # Handle payment based on admin decision
+    payment_result = await session.exec(
+        select(Payment).where(Payment.booking_id == dispute.booking_id)
+    )
+    payment = payment_result.first()
+
+    if payment and payment.status == PaymentStatus.held:
+        if resolve_data.action == "release":
+            payment.status = PaymentStatus.released
+            payment.released_at = datetime.utcnow()
+        elif resolve_data.action == "refund":
+            payment.status = PaymentStatus.refunded
+        session.add(payment)
+        await session.commit()
+
+    # Notify the person who raised the dispute
+    raiser = await session.get(User, dispute.raised_by)
+    if raiser:
+        send_sms(
+            raiser.phone,
+            f"Your dispute has been resolved. Resolution: {resolve_data.resolution}"
+        )
+        await create_notification(
+            session,
+            raiser.id,
+            "dispute_resolved",
+            f"Your dispute has been resolved. Resolution: {resolve_data.resolution}"
+        )
+
+    return dispute
