@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select,  func
 from typing import List, Optional
 from datetime import datetime
+# from sqlmodel import  func
 
 from app.core.dependencies import require_admin
 from app.db.session import get_session
@@ -13,7 +14,7 @@ from app.models.dispute import Dispute
 from app.models.professional import Professional
 from app.models.portfolio import Portfolio
 from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus, DisputeStatus, VerificationStatus, ModerationStatus
-from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse, DisputeAdminResponse, DisputeResolve, ProfessionalAdminResponse, ProfessionalVerificationUpdate, PortfolioAdminResponse, PortfolioModerationUpdate
+from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse, DisputeAdminResponse, DisputeResolve, ProfessionalAdminResponse, ProfessionalVerificationUpdate, PortfolioAdminResponse, PortfolioModerationUpdate, AdminDashboardStats
 from app.services.sms_service import send_sms
 from app.services.notification_service import create_notification
 
@@ -401,3 +402,28 @@ async def moderate_portfolio(
                     f"Your portfolio item '{portfolio.title}' was rejected. Reason: {moderation_data.reason or 'Content policy violation'}."
                 )
     return portfolio
+
+@router.get("/stats", response_model=AdminDashboardStats, status_code=status.HTTP_200_OK)
+async def get_dashboard_stats(
+    session: AsyncSession = Depends(get_session),
+    current_admin: User = Depends(require_admin)
+):
+    total_users = (await session.exec(select(func.count(User.id)))).one()
+    total_clients = (await session.exec(select(func.count(User.id)).where(User.role == UserRole.client))).one()
+    total_professionals = (await session.exec(select(func.count(User.id)).where(User.role == UserRole.professional))).one()
+    pending_verifications = (await session.exec(select(func.count(Professional.id)).where(Professional.verification_status == VerificationStatus.pending))).one()
+    open_disputes = (await session.exec(select(func.count(Dispute.id)).where(Dispute.status == DisputeStatus.open))).one()
+    held_payments = (await session.exec(select(func.count(Payment.id)).where(Payment.status == PaymentStatus.held))).one()
+    total_bookings = (await session.exec(select(func.count(Booking.id)))).one()
+    pending_portfolios = (await session.exec(select(func.count(Portfolio.id)).where(Portfolio.moderation_status == ModerationStatus.pending))).one()
+
+    return AdminDashboardStats(
+        total_users=total_users,
+        total_clients=total_clients,
+        total_professionals=total_professionals,
+        pending_verifications=pending_verifications,
+        open_disputes=open_disputes,
+        held_payments=held_payments,
+        total_bookings=total_bookings,
+        pending_portfolios=pending_portfolios,
+    )

@@ -88,3 +88,13 @@ class PortfolioAdminResponse(SQLModel):
 class PortfolioModerationUpdate(SQLModel):
     moderation_status: ModerationStatus
     reason: Optional[str] = None
+
+class AdminDashboardStats(SQLModel):
+    total_users: int
+    total_clients: int
+    total_professionals: int
+    pending_verifications: int
+    open_disputes: int
+    held_payments: int
+    total_bookings: int
+    pending_portfolios: int
