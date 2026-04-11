@@ -24,9 +24,16 @@ class Professional(SQLModel, table=True):
 
     trade_category: str = Field(max_length=100, index=True)
     bio: Optional[str] = Field(default=None)
+    date_of_birth: datetime = Field(nullable=False)
+    state_of_origin: str = Field(max_length=100, nullable=False)
+    local_government: str = Field(max_length=100, nullable=False)
+    current_city: str = Field(max_length=100, nullable=False)
     service_area: Optional[str] = Field(default=None, max_length=255, index=True)
     years_experience: Optional[int] = Field(default=0)
     nin: Optional[str] = Field(unique=True, default=None, max_length=11)
+    professional_body_membership_url: Optional[str] = Field(default=None, max_length=500)
+    no_professional_body_reason: Optional[str] = Field(default=None)
+    certification_url: Optional[str] = Field(default=None, max_length=500)
 
     # pending | verified | rejected
 
