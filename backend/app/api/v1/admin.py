@@ -2,17 +2,16 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from typing import List, Optional
-from app.models.enum import UserStatus, UserRole
-from app.models.booking import Booking
-from app.models.payment import Payment
-from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus
-from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse
+from datetime import datetime
 
 from app.core.dependencies import require_admin
-from app.models.user import User
 from app.db.session import get_session
-from app.schemas.admin import UserAdminListResponse, UserStatusUpdate
-# from app.schemas.user import UserResponse, UserCreate
+from app.models.user import User
+from app.models.booking import Booking
+from app.models.payment import Payment
+from app.models.professional import Professional
+from app.models.enum import UserStatus, UserRole, PaymentStatus, BookingStatus
+from app.schemas.admin import UserAdminListResponse, UserStatusUpdate, PaymentAdminResponse
 from app.services.sms_service import send_sms
 from app.services.notification_service import create_notification
 
@@ -120,18 +119,20 @@ async def release_payment(
     await session.refresh(payment)
 
     # Notify professional
-    professional_user = await session.get(User, booking.client_id)
-    if professional_user:
-        send_sms(
-            professional_user.phone,
-            f"Good news! Payment of {payment.amount} has been released to your account."
-        )
-        await create_notification(
-            session,
-            professional_user.id,
-            "payment_released",
-            f"Payment of {payment.amount} for your completed job has been released."
-        )
+    professional = await session.get(Professional, booking.professional_id)
+    if professional:
+        professional_user = await session.get(User, professional.user_id)
+        if professional_user:
+            send_sms(
+                professional_user.phone,
+                f"Good news! Payment of {payment.amount} has been released to your account."
+            )
+            await create_notification(
+                session,
+                professional_user.id,
+                "payment_released",
+                f"Payment of {payment.amount} for your completed job has been released."
+            )
     return payment
 
 
